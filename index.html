@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hassan FX — Dashboard</title>
+<style>
+  :root {
+    --bg:       #0d0f11;
+    --surface:  #13171b;
+    --card:     #181d22;
+    --border:   #232a31;
+    --border2:  #2e3740;
+    --gold:     #d4a017;
+    --gold2:    #f0c040;
+    --gold-dim: rgba(212,160,23,0.12);
+    --green:    #22c55e;
+    --green-dim:rgba(34,197,94,0.12);
+    --red:      #ef4444;
+    --red-dim:  rgba(239,68,68,0.12);
+    --amber:    #f59e0b;
+    --amber-dim:rgba(245,158,11,0.12);
+    --blue:     #3b82f6;
+    --blue-dim: rgba(59,130,246,0.10);
+    --text:     #e8eaed;
+    --muted:    #6b7280;
+    --muted2:   #9ca3af;
+    --radius:   8px;
+    --font:     'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; }
+
+  /* ── Layout ── */
+  .shell    { display: grid; grid-template-rows: 48px 1fr; height: 100vh; }
+  .topbar   { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; position: sticky; top: 0; z-index: 10; }
+  .body     { display: grid; grid-template-columns: 180px 1fr; overflow: hidden; height: 100%; }
+  .sidebar  { background: var(--surface); border-right: 1px solid var(--border); padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .content  { overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ── Topbar ── */
+  .logo     { font-size: 15px; font-weight: 600; letter-spacing: -.3px; color: var(--gold2); display: flex; align-items: center; gap: 8px; }
+  .logo svg { width: 18px; height: 18px; }
+  .top-right { display: flex; align-items: center; gap: 10px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-txt { font-size: 11px; color: var(--muted2); }
+  .mode-badge { font-size: 10px; font-weight: 600; background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); padding: 2px 8px; border-radius: 20px; letter-spacing: .5px; }
+  .refresh-btn { background: var(--border); border: none; color: var(--muted2); border-radius: var(--radius); padding: 5px 10px; cursor: pointer; font-size: 12px; font-family: var(--font); transition: background .15s; }
+  .refresh-btn:hover { background: var(--border2); color: var(--text); }
+
+  /* ── Sidebar nav ── */
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: var(--radius); color: var(--muted); cursor: pointer; font-size: 12.5px; transition: all .15s; border: 1px solid transparent; }
+  .nav-item:hover { background: var(--card); color: var(--text); }
+  .nav-item.active { background: var(--gold-dim); color: var(--gold2); border-color: rgba(212,160,23,0.2); font-weight: 500; }
+  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .nav-sep { height: 1px; background: var(--border); margin: 6px 4px; }
+  .nav-label { font-size: 10px; color: var(--muted); padding: 4px 10px 2px; letter-spacing: .6px; text-transform: uppercase; }
+
+  /* ── Section headers ── */
+  .sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .sec-title { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; }
+
+  /* ── Stat cards ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .stat-card.gold { border-color: rgba(212,160,23,0.25); }
+  .stat-lbl  { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .stat-val  { font-size: 26px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
+  .stat-sub  { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .c-gold  { color: var(--gold2); }
+  .c-green { color: var(--green); }
+  .c-red   { color: var(--red); }
+  .c-amber { color: var(--amber); }
+  .c-blue  { color: var(--blue); }
+  .c-muted { color: var(--muted2); }
+
+  /* ── Card ── */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card-title { font-size: 12px; font-weight: 500; color: var(--muted2); display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+  .card-title svg { width: 14px; height: 14px; }
+
+  /* ── Two col ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  /* ── Pill badges ── */
+  .pill { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; letter-spacing: .3px; }
+  .pill-win  { background: var(--green-dim); color: var(--green); }
+  .pill-loss { background: var(--red-dim);   color: var(--red); }
+  .pill-be   { background: rgba(107,114,128,.15); color: var(--muted2); }
+  .pill-open { background: var(--amber-dim); color: var(--amber); }
+
+  /* ── Table ── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  .td-muted { color: var(--muted); font-size: 11px; }
+  .td-mono  { font-family: 'Courier New', monospace; font-size: 12px; }
+
+  /* ── Filter tabs ── */
+  .filters { display: flex; gap: 4px; }
+  .ftab { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 11px; font-family: var(--font); transition: all .12s; }
+  .ftab:hover { border-color: var(--border2); color: var(--text); }
+  .ftab.active { background: var(--gold-dim); color: var(--gold2); border-color: rgba(212,160,23,.3); font-weight: 500; }
+
+  /* ── Bar chart ── */
+  .bars-area { display: flex; align-items: flex-end; gap: 5px; height: 90px; padding: 0 2px; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; }
+  .bar-stack { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; height: 80px; width: 100%; }
+  .bar { border-radius: 3px 3px 0 0; width: 100%; min-height: 2px; }
+  .bar.w { background: var(--green); opacity: .75; }
+  .bar.l { background: var(--red); opacity: .7; }
+  .bar-day { font-size: 10px; color: var(--muted); }
+  .chart-legend { display: flex; gap: 12px; margin-top: 8px; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted2); }
+  .leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* ── Group progress bars ── */
+  .grp-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .grp-row:last-child { border-bottom: none; }
+  .grp-name { width: 88px; font-size: 12px; color: var(--muted2); flex-shrink: 0; }
+  .grp-bar-bg { flex: 1; height: 5px; background: var(--border2); border-radius: 4px; overflow: hidden; }
+  .grp-bar-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+  .grp-trades { width: 26px; text-align: right; font-size: 11px; color: var(--muted); }
+  .grp-wr { width: 38px; text-align: right; font-size: 12px; font-weight: 600; }
+
+  /* ── Open trades ── */
+  .open-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .open-row:last-child { border-bottom: none; }
+  .open-pair { font-size: 13px; font-weight: 600; }
+  .open-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .open-pnl  { font-size: 14px; font-weight: 700; text-align: right; }
+  .open-since { font-size: 10px; color: var(--muted); margin-top: 2px; text-align: right; }
+
+  /* ── Loading / empty ── */
+  .loading { color: var(--muted); font-size: 12px; padding: 20px; text-align: center; }
+  .empty   { color: var(--muted); font-size: 12px; padding: 16px; text-align: center; border: 1px dashed var(--border); border-radius: var(--radius); }
+
+  /* ── Pips colored ── */
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .neu { color: var(--muted2); }
+
+  /* ── Page sections ── */
+  .page { display: none; flex-direction: column; gap: 16px; }
+  .page.active { display: flex; }
+
+  /* ── Config modal ── */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; display: none; align-items: center; justify-content: center; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border2); border-radius: 12px; padding: 24px; width: 380px; }
+  .modal h2 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+  .modal label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .modal input { width: 100%; background: var(--surface); border: 1px solid var(--border2); color: var(--text); border-radius: var(--radius); padding: 8px 10px; font-size: 12px; font-family: var(--font); margin-bottom: 12px; }
+  .modal input:focus { outline: none; border-color: var(--gold); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .btn-primary { flex: 1; background: var(--gold); color: #000; border: none; border-radius: var(--radius); padding: 9px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: background .15s; }
+  .btn-primary:hover { background: var(--gold2); }
+  .btn-sec { flex: 1; background: var(--border); color: var(--text); border: none; border-radius: var(--radius); padding: 9px; font-size: 13px; cursor: pointer; font-family: var(--font); transition: background .15s; }
+  .btn-sec:hover { background: var(--border2); }
+
+  /* ── Performance ── */
+  .perf-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .perf-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .perf-lbl { font-size: 11px; color: var(--muted); }
+  .perf-val { font-size: 20px; font-weight: 700; letter-spacing: -.5px; margin-top: 4px; }
+
+  /* ── scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- Config modal (shows on first load if no creds) -->
+<div class="modal-backdrop" id="cfg-modal">
+  <div class="modal">
+    <h2>⚙️ Supabase Setup</h2>
+    <label>Supabase Project URL</label>
+    <input id="cfg-url" type="text" placeholder="https://xxxx.supabase.co" />
+    <label>Supabase Anon Key</label>
+    <input id="cfg-key" type="text" placeholder="eyJhbGci..." />
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="saveConfig()">Save & Connect</button>
+      <button class="btn-sec" onclick="closeCfg()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 20 20" fill="none"><path d="M10 2L13 7H17L14 11L15.5 16L10 13L4.5 16L6 11L3 7H7L10 2Z" fill="#d4a017" opacity=".85"/></svg>
+      Hassan FX
+    </div>
+    <div class="top-right">
+      <span class="mode-badge" id="mode-badge">DRY RUN</span>
+      <div class="status-dot" id="status-dot" style="background:var(--muted);box-shadow:none"></div>
+      <span class="status-txt" id="status-txt">Connecting…</span>
+      <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+      <button class="refresh-btn" onclick="openCfg()">⚙ Config</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="nav-label">Main</div>
+      <div class="nav-item active" onclick="showPage('overview',this)">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity=".6"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity=".6"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity=".6"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity=".6"/></svg>
+        Overview
+      </div>
+      <div class="nav-item" onclick="showPage('trades',this)">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h9M2 12h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Trade History
+      </div>
+      <div class="nav-item" onclick="showPage('open',this)">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M8 2v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/></svg>
+        Open Trades
+      </div>
+      <div class="nav-sep"></div>
+      <div class="nav-label">Analysis</div>
+      <div class="nav-item" onclick="showPage('stats',this)">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7l3 3 5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Stats
+      </div>
+      <div class="nav-item" onclick="showPage('groups',this)">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="5" cy="6" r="2.5" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="6" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 13c0-2 1.8-3 4-3M10 10c2.2 0 5 1 5 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Groups
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- ── OVERVIEW PAGE ── -->
+      <div class="page active" id="page-overview">
+        <div>
+          <div class="sec-head"><span class="sec-title">Performance snapshot</span><span id="last-updated" style="font-size:11px;color:var(--muted)"></span></div>
+          <div class="stats-row" id="stat-cards">
+            <div class="stat-card"><div class="stat-lbl">Total Trades</div><div class="stat-val c-gold" id="s-total">—</div><div class="stat-sub">all time</div></div>
+            <div class="stat-card"><div class="stat-lbl">Win Rate</div><div class="stat-val c-green" id="s-wr">—</div><div class="stat-sub" id="s-wrl">—</div></div>
+            <div class="stat-card"><div class="stat-lbl">Net Pips</div><div class="stat-val" id="s-pips">—</div><div class="stat-sub">closed trades</div></div>
+            <div class="stat-card"><div class="stat-lbl">Open Positions</div><div class="stat-val c-amber" id="s-open">—</div><div class="stat-sub">live</div></div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <!-- Weekly bar chart -->
+          <div class="card">
+            <div class="card-title">
+              <svg viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7l3 3 5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Weekly W/L
+            </div>
+            <div class="bars-area" id="weekly-chart"><div class="loading">Loading…</div></div>
+            <div class="chart-legend">
+              <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>Wins</div>
+              <div class="leg"><div class="leg-dot" style="background:var(--red)"></div>Losses</div>
+            </div>
+          </div>
+
+          <!-- Group breakdown -->
+          <div class="card">
+            <div class="card-title">
+              <svg viewBox="0 0 16 16" fill="none"><circle cx="5" cy="6" r="2.5" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="6" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 13c0-2 1.8-3 4-3M10 10c2.2 0 5 1 5 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Group Win Rates
+            </div>
+            <div id="grp-breakdown"><div class="loading">Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- Open positions preview -->
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M8 2v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/></svg>
+            Live Positions
+          </div>
+          <div id="open-preview"><div class="loading">Loading…</div></div>
+        </div>
+
+        <!-- Recent trades -->
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h9M2 12h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Recent Trades (last 10)
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Pair</th><th>Dir</th><th>Entry</th><th>Pips</th><th>Result</th><th>Source</th><th>Date</th></tr></thead>
+              <tbody id="recent-tbody"><tr><td colspan="8" class="loading">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TRADE HISTORY PAGE ── -->
+      <div class="page" id="page-trades">
+        <div class="sec-head">
+          <span class="sec-title">Trade History</span>
+          <div class="filters" id="hist-filters">
+            <button class="ftab active" onclick="filterTrades('all',this)">All</button>
+            <button class="ftab" onclick="filterTrades('TP',this)">TP</button>
+            <button class="ftab" onclick="filterTrades('SR',this)">SR</button>
+            <button class="ftab" onclick="filterTrades('EC',this)">EC</button>
+            <button class="ftab" onclick="filterTrades('HF',this)">HF</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP1</th><th>Pips</th><th>Result</th><th>Source</th><th>Date</th></tr></thead>
+              <tbody id="hist-tbody"><tr><td colspan="10" class="loading">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── OPEN TRADES PAGE ── -->
+      <div class="page" id="page-open">
+        <div class="sec-head"><span class="sec-title">Open Positions</span></div>
+        <div class="card" id="open-card"><div class="loading">Loading…</div></div>
+      </div>
+
+      <!-- ── STATS PAGE ── -->
+      <div class="page" id="page-stats">
+        <div class="sec-head"><span class="sec-title">Statistics</span></div>
+        <div class="perf-grid" id="perf-grid"><div class="loading" style="grid-column:span 3">Loading…</div></div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Best performing pair</div>
+            <div id="best-pair" class="loading">Loading…</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Result distribution</div>
+            <div id="result-dist" class="loading">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── GROUPS PAGE ── -->
+      <div class="page" id="page-groups">
+        <div class="sec-head"><span class="sec-title">Group Performance</span></div>
+        <div class="three-col" id="grp-cards"><div class="loading" style="grid-column:span 3">Loading…</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const CFG_KEY = 'hassanfx_cfg';
+
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch { return {}; }
+}
+function saveConfig() {
+  const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+  const key = document.getElementById('cfg-key').value.trim();
+  if (!url || !key) { alert('URL aur Key dono fill karo'); return; }
+  localStorage.setItem(CFG_KEY, JSON.stringify({ url, key }));
+  closeCfg();
+  loadAll();
+}
+function openCfg() {
+  const c = getConfig();
+  document.getElementById('cfg-url').value = c.url || '';
+  document.getElementById('cfg-key').value = c.key || '';
+  document.getElementById('cfg-modal').classList.add('open');
+}
+function closeCfg() { document.getElementById('cfg-modal').classList.remove('open'); }
+
+// ── SUPABASE FETCH ───────────────────────────────────────────────────────────
+async function sbFetch(table, params = '') {
+  const { url, key } = getConfig();
+  if (!url || !key) return null;
+  const res = await fetch(`${url}/rest/v1/${table}?${params}`, {
+    headers: {
+      'apikey': key,
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    }
+  });
+  if (!res.ok) throw new Error(`Supabase error: ${res.status}`);
+  return res.json();
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function pipsStr(p) {
+  if (p === null || p === undefined) return '—';
+  const n = Math.round(Number(p));
+  return n > 0 ? `+${n}` : `${n}`;
+}
+function pipsClass(p) {
+  if (!p) return 'neu';
+  return Number(p) > 0 ? 'pos' : Number(p) < 0 ? 'neg' : 'neu';
+}
+function resultPill(r) {
+  if (!r || r === 'open') return `<span class="pill pill-open">${r || 'open'}</span>`;
+  if (r === 'win')       return `<span class="pill pill-win">Win</span>`;
+  if (r === 'loss')      return `<span class="pill pill-loss">Loss</span>`;
+  return `<span class="pill pill-be">BE</span>`;
+}
+function dirColor(d) {
+  if (!d) return '';
+  return d.toUpperCase() === 'BUY' ? 'c-green' : 'c-red';
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+function sourceLabel(sig_id, source) {
+  if (sig_id && sig_id.startsWith('TP')) return 'TradingPapa';
+  if (sig_id && sig_id.startsWith('SR')) return 'Sniper Room';
+  if (sig_id && sig_id.startsWith('EC')) return 'EarnwRashid';
+  if (source === 'manual_template') return 'Hassan FX';
+  return source || '—';
+}
+function isZoneHidden(r) {
+  const cr = r.close_reason || '';
+  return cr.includes('zone:low') || cr.includes('zone:high');
+}
+
+// ── GLOBAL DATA ──────────────────────────────────────────────────────────────
+let allTrades = [];
+let openTrades = [];
+
+// ── LOAD ALL ─────────────────────────────────────────────────────────────────
+async function loadAll() {
+  const cfg = getConfig();
+  if (!cfg.url || !cfg.key) { openCfg(); return; }
+
+  setStatus('connecting');
+  try {
+    const data = await sbFetch('trades', 'order=id.desc&limit=500');
+    if (!data) return;
+
+    allTrades  = data.filter(r => r.outcome !== 'open' && r.outcome !== 'cancelled' && r.outcome !== null && !isZoneHidden(r));
+    openTrades = data.filter(r => r.outcome === 'open');
+
+    setStatus('ok');
+    document.getElementById('last-updated').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    renderOverview();
+    renderHistory(allTrades);
+    renderOpenPage();
+    renderStats();
+    renderGroups();
+  } catch (e) {
+    setStatus('error');
+    console.error(e);
+  }
+}
+
+function setStatus(s) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-txt');
+  if (s === 'ok')          { dot.style.cssText = 'background:var(--green);box-shadow:0 0 6px var(--green)'; txt.textContent = 'Supabase live'; }
+  else if (s === 'error')  { dot.style.cssText = 'background:var(--red);box-shadow:0 0 6px var(--red)';     txt.textContent = 'Connection failed'; }
+  else                     { dot.style.cssText = 'background:var(--muted);box-shadow:none';                  txt.textContent = 'Connecting…'; }
+}
+
+// ── OVERVIEW ─────────────────────────────────────────────────────────────────
+function renderOverview() {
+  const t = allTrades;
+  const wins   = t.filter(r => r.outcome === 'win').length;
+  const losses = t.filter(r => r.outcome === 'loss').length;
+  const bes    = t.filter(r => r.outcome === 'breakeven').length;
+  const wr     = (wins + losses) > 0 ? ((wins / (wins + losses)) * 100).toFixed(1) : '0.0';
+  const pips   = t.reduce((s, r) => s + (Number(r.pips) || 0), 0);
+
+  document.getElementById('s-total').textContent = t.length;
+  document.getElementById('s-wr').textContent    = wr + '%';
+  document.getElementById('s-wrl').textContent   = `${wins}W ${losses}L ${bes}BE`;
+  document.getElementById('s-pips').textContent  = pipsStr(pips);
+  document.getElementById('s-pips').className    = 'stat-val ' + pipsClass(pips);
+  document.getElementById('s-open').textContent  = openTrades.length;
+
+  renderWeeklyChart();
+  renderGrpBreakdown();
+  renderOpenPreview();
+  renderRecentTrades();
+}
+
+function renderWeeklyChart() {
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const now  = new Date();
+  const dayMap = {};
+  days.forEach(d => dayMap[d] = { w: 0, l: 0 });
+
+  allTrades.forEach(r => {
+    if (r.outcome === 'open') return;
+    const d  = new Date(r.close_time);
+    const diff = Math.floor((now - d) / 86400000);
+    if (diff > 7) return;
+    const dn = days[(d.getDay() + 6) % 7];
+    if (r.outcome === 'win')  dayMap[dn].w++;
+    if (r.outcome === 'loss') dayMap[dn].l++;
+  });
+
+  const maxV = Math.max(1, ...Object.values(dayMap).map(x => x.w + x.l));
+  const html = days.map(d => {
+    const { w, l } = dayMap[d];
+    const wh = Math.round((w / maxV) * 72);
+    const lh = Math.round((l / maxV) * 72);
+    return `<div class="bar-col">
+      <div class="bar-stack">
+        ${w > 0 ? `<div class="bar w" style="height:${wh}px"></div>` : ''}
+        ${l > 0 ? `<div class="bar l" style="height:${lh}px"></div>` : ''}
+        ${w === 0 && l === 0 ? `<div class="bar" style="height:2px;background:var(--border)"></div>` : ''}
+      </div>
+      <div class="bar-day">${d}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('weekly-chart').innerHTML = html;
+}
+
+function renderGrpBreakdown() {
+  const groups = [
+    { tag:'TP', name:'TradingPapa',    color:'#3b82f6' },
+    { tag:'SR', name:'Sniper Room',    color:'#22c55e' },
+    { tag:'EC', name:'EarnwRashid',    color:'#f59e0b' },
+    { tag:'HF', name:'Hassan FX',      color:'#d4a017' },
+  ];
+  const html = groups.map(g => {
+    const rows = allTrades.filter(r =>
+      (g.tag === 'HF') ? r.source === 'manual_template'
+                       : (r.signal_id || '').startsWith(g.tag)
+    );
+    const w = rows.filter(r => r.outcome === 'win').length;
+    const l = rows.filter(r => r.outcome === 'loss').length;
+    const wr = (w + l) > 0 ? ((w / (w + l)) * 100).toFixed(0) : 0;
+    return `<div class="grp-row">
+      <span class="grp-name">${g.name}</span>
+      <div class="grp-bar-bg"><div class="grp-bar-fill" style="width:${wr}%;background:${g.color}"></div></div>
+      <span class="grp-trades">${rows.length}</span>
+      <span class="grp-wr" style="color:${g.color}">${wr}%</span>
+    </div>`;
+  }).join('');
+  document.getElementById('grp-breakdown').innerHTML = html || '<div class="empty">No data</div>';
+}
+
+function renderOpenPreview() {
+  if (openTrades.length === 0) {
+    document.getElementById('open-preview').innerHTML = '<div class="empty">No open positions</div>';
+    return;
+  }
+  const html = openTrades.slice(0, 4).map(r => {
+    const dir = (r.direction || '').toUpperCase();
+    return `<div class="open-row">
+      <div>
+        <div class="open-pair">${r.symbol || '—'} <span class="${dirColor(dir)}" style="font-size:11px;font-weight:600">${dir}</span></div>
+        <div class="open-meta">Entry: ${r.entry || '—'} · SL: ${r.sl || '—'} · TP: ${r.tp1 || '—'}</div>
+      </div>
+      <div>
+        <div class="open-pnl c-amber">${r.signal_id || '—'}</div>
+        <div class="open-since">${fmtDate(r.open_time)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('open-preview').innerHTML = html;
+}
+
+function renderRecentTrades() {
+  const rows = allTrades.slice(0, 10);
+  if (rows.length === 0) {
+    document.getElementById('recent-tbody').innerHTML = '<tr><td colspan="8"><div class="empty">No closed trades yet</div></td></tr>';
+    return;
+  }
+  document.getElementById('recent-tbody').innerHTML = rows.map(r => {
+    const dir = (r.direction || '').toUpperCase();
+    return `<tr>
+      <td class="td-muted td-mono">${r.signal_id || '—'}</td>
+      <td style="font-weight:500">${r.symbol || '—'}</td>
+      <td class="${dirColor(dir)}" style="font-weight:600">${dir}</td>
+      <td class="td-muted">${r.entry || '—'}</td>
+      <td class="${pipsClass(r.pips)}" style="font-weight:600">${pipsStr(r.pips)}</td>
+      <td>${resultPill(r.outcome)}</td>
+      <td class="td-muted">${sourceLabel(r.signal_id, r.source)}</td>
+      <td class="td-muted">${fmtDate(r.close_time)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── HISTORY PAGE ─────────────────────────────────────────────────────────────
+let currentFilter = 'all';
+function filterTrades(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('#hist-filters .ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let rows = allTrades;
+  if (f !== 'all') {
+    if (f === 'HF') rows = allTrades.filter(r => r.source === 'manual_template');
+    else rows = allTrades.filter(r => (r.signal_id || '').startsWith(f));
+  }
+  renderHistory(rows);
+}
+
+function renderHistory(rows) {
+  if (rows.length === 0) {
+    document.getElementById('hist-tbody').innerHTML = '<tr><td colspan="10"><div class="empty">No trades for this filter</div></td></tr>';
+    return;
+  }
+  document.getElementById('hist-tbody').innerHTML = rows.map(r => {
+    const dir = (r.direction || '').toUpperCase();
+    return `<tr>
+      <td class="td-muted td-mono">${r.signal_id || '—'}</td>
+      <td style="font-weight:500">${r.symbol || '—'}</td>
+      <td class="${dirColor(dir)}" style="font-weight:600">${dir}</td>
+      <td class="td-muted">${r.entry || '—'}</td>
+      <td class="td-muted">${r.sl || '—'}</td>
+      <td class="td-muted">${r.tp1 || '—'}</td>
+      <td class="${pipsClass(r.pips)}" style="font-weight:600">${pipsStr(r.pips)}</td>
+      <td>${resultPill(r.outcome)}</td>
+      <td class="td-muted">${sourceLabel(r.signal_id, r.source)}</td>
+      <td class="td-muted">${fmtDate(r.close_time)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── OPEN TRADES PAGE ─────────────────────────────────────────────────────────
+function renderOpenPage() {
+  const el = document.getElementById('open-card');
+  if (openTrades.length === 0) {
+    el.innerHTML = '<div class="empty">No open positions right now</div>';
+    return;
+  }
+  el.innerHTML = openTrades.map(r => {
+    const dir = (r.direction || '').toUpperCase();
+    return `<div class="open-row">
+      <div>
+        <div class="open-pair">${r.symbol || '—'} <span class="${dirColor(dir)}" style="font-size:12px;font-weight:600">${dir}</span>
+          <span class="pill pill-open" style="margin-left:6px">${r.signal_id || 'manual'}</span>
+        </div>
+        <div class="open-meta" style="margin-top:4px">
+          Entry: <b>${r.entry || '—'}</b> &nbsp;·&nbsp;
+          SL: <b>${r.sl || '—'}</b> &nbsp;·&nbsp;
+          TP1: <b>${r.tp1 || '—'}</b>
+          ${r.tp2 ? ` &nbsp;·&nbsp; TP2: <b>${r.tp2}</b>` : ''}
+        </div>
+        <div class="open-meta">Opened: ${fmtDate(r.open_time)} &nbsp;·&nbsp; Source: ${sourceLabel(r.signal_id, r.source)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── STATS PAGE ───────────────────────────────────────────────────────────────
+function renderStats() {
+  const t = allTrades;
+  const wins   = t.filter(r => r.outcome === 'win').length;
+  const losses = t.filter(r => r.outcome === 'loss').length;
+  const bes    = t.filter(r => r.outcome === 'breakeven').length;
+  const wr     = (wins + losses) > 0 ? ((wins / (wins + losses)) * 100).toFixed(1) : '0.0';
+  const pips   = t.reduce((s, r) => s + (Number(r.pips) || 0), 0);
+  const avgPips = t.length > 0 ? (pips / t.length).toFixed(1) : '0.0';
+  const bestPip = t.length > 0 ? Math.max(...t.map(r => Number(r.pips) || 0)) : 0;
+  const worstPip = t.length > 0 ? Math.min(...t.map(r => Number(r.pips) || 0)) : 0;
+
+  document.getElementById('perf-grid').innerHTML = [
+    { lbl:'Win Rate',       val: wr + '%',           cls: 'c-green' },
+    { lbl:'Total Wins',     val: wins,                cls: 'c-green' },
+    { lbl:'Total Losses',   val: losses,              cls: 'c-red'   },
+    { lbl:'Breakevens',     val: bes,                 cls: 'c-muted' },
+    { lbl:'Net Pips',       val: pipsStr(pips),       cls: pipsClass(pips) },
+    { lbl:'Avg Pips/Trade', val: pipsStr(avgPips),    cls: pipsClass(avgPips) },
+    { lbl:'Best Trade',     val: '+' + bestPip,       cls: 'c-green' },
+    { lbl:'Worst Trade',    val: worstPip,             cls: 'c-red'   },
+    { lbl:'Total Trades',   val: t.length,             cls: 'c-gold'  },
+  ].map(x => `<div class="perf-card"><div class="perf-lbl">${x.lbl}</div><div class="perf-val ${x.cls}">${x.val}</div></div>`).join('');
+
+  // Best pair
+  const pairMap = {};
+  t.forEach(r => {
+    const p = r.symbol || 'UNKNOWN';
+    if (!pairMap[p]) pairMap[p] = { w: 0, l: 0 };
+    if (r.outcome === 'win')  pairMap[p].w++;
+    if (r.outcome === 'loss') pairMap[p].l++;
+  });
+  const bestPairHtml = Object.entries(pairMap)
+    .sort((a,b) => b[1].w - a[1].w)
+    .slice(0, 5)
+    .map(([pair, s]) => {
+      const wr2 = (s.w + s.l) > 0 ? ((s.w / (s.w + s.l)) * 100).toFixed(0) : 0;
+      return `<div class="grp-row">
+        <span class="grp-name" style="font-weight:500;color:var(--text)">${pair}</span>
+        <div class="grp-bar-bg"><div class="grp-bar-fill" style="width:${wr2}%;background:var(--green)"></div></div>
+        <span class="grp-wr c-green">${wr2}%</span>
+      </div>`;
+    }).join('') || '<div class="empty">No data</div>';
+  document.getElementById('best-pair').innerHTML = bestPairHtml;
+
+  // Result distribution
+  const total = wins + losses + bes;
+  const wPct  = total > 0 ? ((wins / total) * 100).toFixed(0) : 0;
+  const lPct  = total > 0 ? ((losses / total) * 100).toFixed(0) : 0;
+  const bPct  = total > 0 ? ((bes / total) * 100).toFixed(0) : 0;
+  document.getElementById('result-dist').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span class="c-green">Wins</span><span class="c-green">${wPct}% (${wins})</span>
+        </div>
+        <div class="grp-bar-bg" style="height:7px"><div class="grp-bar-fill" style="width:${wPct}%;background:var(--green)"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span class="c-red">Losses</span><span class="c-red">${lPct}% (${losses})</span>
+        </div>
+        <div class="grp-bar-bg" style="height:7px"><div class="grp-bar-fill" style="width:${lPct}%;background:var(--red)"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span class="c-muted">Breakeven</span><span class="c-muted">${bPct}% (${bes})</span>
+        </div>
+        <div class="grp-bar-bg" style="height:7px"><div class="grp-bar-fill" style="width:${bPct}%;background:var(--muted)"></div></div>
+      </div>
+    </div>`;
+}
+
+// ── GROUPS PAGE ──────────────────────────────────────────────────────────────
+function renderGroups() {
+  const groups = [
+    { tag:'TP', name:'TradingPapa',    emoji:'📊', color:'#3b82f6' },
+    { tag:'SR', name:'Sniper Room',    emoji:'🎯', color:'#22c55e' },
+    { tag:'EC', name:'EarnwRashid',    emoji:'💡', color:'#f59e0b' },
+    { tag:'HF', name:'Hassan FX',      emoji:'⭐', color:'#d4a017' },
+  ];
+  document.getElementById('grp-cards').innerHTML = groups.map(g => {
+    const rows = allTrades.filter(r =>
+      g.tag === 'HF' ? r.source === 'manual_template'
+                     : (r.signal_id || '').startsWith(g.tag)
+    );
+    const w   = rows.filter(r => r.outcome === 'win').length;
+    const l   = rows.filter(r => r.outcome === 'loss').length;
+    const be  = rows.filter(r => r.outcome === 'breakeven').length;
+    const wr  = (w + l) > 0 ? ((w / (w + l)) * 100).toFixed(1) : '0.0';
+    const pip = rows.reduce((s, r) => s + (Number(r.pips) || 0), 0);
+    return `<div class="card" style="border-top:3px solid ${g.color}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:18px">${g.emoji}</span>
+        <div>
+          <div style="font-weight:600;font-size:13px">${g.name}</div>
+          <div class="td-muted">${rows.length} trades</div>
+        </div>
+        <span style="margin-left:auto;font-size:20px;font-weight:700;color:${g.color}">${wr}%</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px">
+        <div style="text-align:center;padding:7px;background:var(--green-dim);border-radius:6px">
+          <div class="c-green" style="font-weight:700;font-size:15px">${w}</div>
+          <div class="td-muted">Wins</div>
+        </div>
+        <div style="text-align:center;padding:7px;background:var(--red-dim);border-radius:6px">
+          <div class="c-red" style="font-weight:700;font-size:15px">${l}</div>
+          <div class="td-muted">Losses</div>
+        </div>
+        <div style="text-align:center;padding:7px;background:var(--border);border-radius:6px">
+          <div class="c-muted" style="font-weight:700;font-size:15px">${be}</div>
+          <div class="td-muted">BE</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+        <span class="td-muted">Net pips</span>
+        <span style="font-weight:700;color:${pip >= 0 ? 'var(--green)' : 'var(--red)'}">${pipsStr(pip)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── NAV ──────────────────────────────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const cfg = getConfig();
+  if (!cfg.url || !cfg.key) { openCfg(); return; }
+  loadAll();
+  // Auto-refresh every 5 minutes
+  setInterval(loadAll, 5 * 60 * 1000);
+});
+</script>
+</body>
+</html>

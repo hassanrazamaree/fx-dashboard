@@ -336,8 +336,8 @@
         <div class="card">
           <div class="tbl-wrap">
             <table>
-              <thead><tr><th>ID</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP1</th><th>Pips</th><th>Result</th><th>Source</th><th>Date</th></tr></thead>
-              <tbody id="hist-tbody"><tr><td colspan="10" class="loading">Loading…</td></tr></tbody>
+              <thead><tr><th>ID</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP1</th><th>Pips</th><th>Result</th><th>Close Reason</th><th>Source</th><th>Date</th></tr></thead>
+              <tbody id="hist-tbody"><tr><td colspan="11" class="loading">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -361,6 +361,24 @@
           <div class="card">
             <div class="card-title">Result distribution</div>
             <div id="result-dist" class="loading">Loading…</div>
+          </div>
+        </div>
+        <!-- RR Analysis -->
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M2 14L6 8l3 4 3-6 2 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            RR Analysis (Planned vs Actual)
+          </div>
+          <div id="rr-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+            <div class="perf-card"><div class="perf-lbl">Avg Planned RR</div><div class="perf-val c-gold" id="rr-planned">—</div></div>
+            <div class="perf-card"><div class="perf-lbl">Avg Actual RR</div><div class="perf-val c-green" id="rr-actual">—</div></div>
+            <div class="perf-card"><div class="perf-lbl">Trades w/ RR data</div><div class="perf-val c-muted" id="rr-count">—</div></div>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Pair</th><th>Dir</th><th>Planned RR</th><th>Actual RR</th><th>Result</th></tr></thead>
+              <tbody id="rr-tbody"><tr><td colspan="6" class="loading">Loading…</td></tr></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -629,11 +647,12 @@ function filterTrades(f, btn) {
 
 function renderHistory(rows) {
   if (rows.length === 0) {
-    document.getElementById('hist-tbody').innerHTML = '<tr><td colspan="10"><div class="empty">No trades for this filter</div></td></tr>';
+    document.getElementById('hist-tbody').innerHTML = '<tr><td colspan="11"><div class="empty">No trades for this filter</div></td></tr>';
     return;
   }
   document.getElementById('hist-tbody').innerHTML = rows.map(r => {
     const dir = (r.direction || '').toUpperCase();
+    const cr  = r.close_reason || '—';
     return `<tr>
       <td class="td-muted td-mono">${r.signal_id || '—'}</td>
       <td style="font-weight:500">${r.symbol || '—'}</td>
@@ -643,6 +662,7 @@ function renderHistory(rows) {
       <td class="td-muted">${r.tp1 || '—'}</td>
       <td class="${pipsClass(r.pips)}" style="font-weight:600">${pipsStr(r.pips)}</td>
       <td>${resultPill(r.outcome)}</td>
+      <td class="td-muted" style="font-size:11px">${cr}</td>
       <td class="td-muted">${sourceLabel(r.signal_id, r.source)}</td>
       <td class="td-muted">${fmtDate(r.close_time)}</td>
     </tr>`;
@@ -746,6 +766,61 @@ function renderStats() {
         <div class="grp-bar-bg" style="height:7px"><div class="grp-bar-fill" style="width:${bPct}%;background:var(--muted)"></div></div>
       </div>
     </div>`;
+  renderRR();
+}
+
+// ── RR ANALYSIS ──────────────────────────────────────────────────────────────
+function renderRR() {
+  const t = allTrades.filter(r => r.planned_rr || r.actual_rr || (r.entry && r.sl && r.tp1));
+
+  // Calculate planned/actual RR on the fly if not in DB
+  const withRR = t.map(r => {
+    let planned = Number(r.planned_rr) || 0;
+    let actual  = Number(r.actual_rr)  || 0;
+
+    if (!planned && r.entry && r.sl && r.tp1) {
+      const slDiff = Math.abs(r.entry - r.sl);
+      const tpDiff = Math.abs(r.tp1 - r.entry);
+      planned = slDiff > 0 ? Math.round((tpDiff / slDiff) * 100) / 100 : 0;
+    }
+    if (!actual && r.pips != null && r.entry && r.sl) {
+      const slPips = Math.abs(r.entry - r.sl) * 10;
+      actual = slPips > 0 ? Math.round((Math.abs(r.pips) / slPips) * 100) / 100 : 0;
+    }
+    return { ...r, _planned: planned, _actual: actual };
+  }).filter(r => r._planned > 0);
+
+  if (withRR.length === 0) {
+    document.getElementById('rr-tbody').innerHTML = '<tr><td colspan="6"><div class="empty">No RR data yet</div></td></tr>';
+    document.getElementById('rr-planned').textContent = '—';
+    document.getElementById('rr-actual').textContent  = '—';
+    document.getElementById('rr-count').textContent   = '0';
+    return;
+  }
+
+  const avgPlanned = (withRR.reduce((s, r) => s + r._planned, 0) / withRR.length).toFixed(2);
+  const withActual = withRR.filter(r => r._actual > 0);
+  const avgActual  = withActual.length > 0
+    ? (withActual.reduce((s, r) => s + r._actual, 0) / withActual.length).toFixed(2)
+    : '—';
+
+  document.getElementById('rr-planned').textContent = '1:' + avgPlanned;
+  document.getElementById('rr-actual').textContent  = avgActual !== '—' ? '1:' + avgActual : '—';
+  document.getElementById('rr-count').textContent   = withRR.length;
+
+  document.getElementById('rr-tbody').innerHTML = withRR.slice(0, 30).map(r => {
+    const dir = (r.direction || '').toUpperCase();
+    const met = r._actual >= r._planned;
+    const icon = r.outcome === 'loss' ? '❌' : met ? '✅' : '⚠️';
+    return `<tr>
+      <td class="td-muted td-mono">${r.signal_id || '—'}</td>
+      <td style="font-weight:500">${r.symbol || '—'}</td>
+      <td class="${dirColor(dir)}" style="font-weight:600">${dir}</td>
+      <td class="c-gold" style="font-weight:600">1:${r._planned}</td>
+      <td class="${r._actual >= r._planned ? 'c-green' : 'c-red'}" style="font-weight:600">${r._actual > 0 ? '1:' + r._actual : '—'}</td>
+      <td>${icon} ${resultPill(r.outcome)}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ── GROUPS PAGE ──────────────────────────────────────────────────────────────
